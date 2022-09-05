@@ -13,7 +13,7 @@ multi_line_output = 3
 use_parentheses = true
 
 [tool.poetry]
-name = "python-template-repository"
+name = "PACA"
 version = "0.1.0"
 description = ""
 authors = ["YoungJae Kim <corea_kyj@naver.com>"]
