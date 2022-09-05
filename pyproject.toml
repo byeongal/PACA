@@ -20,7 +20,12 @@ authors = ["YoungJae Kim <corea_kyj@naver.com>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python =  ">=3.8,<3.9"
+openai = "^0.23.0"
+rich = "12.5.0"
+streamlit = "^1.12.2"
+streamlit-chat = "^0.0.2"
+firebase-admin = "^5.3.0"
 
 [tool.poetry.dev-dependencies]
 black = "^22.6.0"

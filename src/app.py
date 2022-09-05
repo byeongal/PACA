@@ -9,25 +9,6 @@ from firebase_admin import credentials, db
 from streamlit_chat import message as st_message
 
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
-
-
-if "history" not in st.session_state:
-    st.session_state.history = []
-
-try:
-    firebase_cred_path = os.getenv("FIREBASE_CRED_PATH")
-    firebase_database_url = os.getenv("FIREBASE_DATABASE_URL")
-    cred = credentials.Certificate(firebase_cred_path)
-    firebase_admin.initialize_app(
-        cred,
-        {"databaseURL": firebase_database_url},
-    )
-    print("Done")
-except Exception as e:
-    print(f"Error: {e}")
-
-
 @st.experimental_singleton
 def load_initial_data():
     print("Load Data")
@@ -41,8 +22,34 @@ def load_initial_data():
         {"AI": value["AI"], "Human": value["Human"], "context_id": key}
         for key, value in sorted(brooklyn_data["context"].items(), key=lambda x: int(x[0]))
     ]
-
     return task_description, core_beliefs, base_context
+
+
+openai.api_key = os.getenv("OPENAI_API_KEY")
+firebase_app_name = os.getenv("FIREBASE_APP_NAME", firebase_admin._DEFAULT_APP_NAME)
+
+try:
+    firebase_admin.get_app(firebase_app_name)
+except ValueError:
+    print("Initialize Firebase")
+    firebase_cred_path = os.getenv("FIREBASE_CRED_PATH")
+    firebase_database_url = os.getenv("FIREBASE_DATABASE_URL")
+    cred = credentials.Certificate(firebase_cred_path)
+    firebase_admin.initialize_app(cred, {"databaseURL": firebase_database_url}, name=firebase_app_name)
+
+if "history" not in st.session_state:
+    st.session_state.history = []
+
+if (
+    "task_description" not in st.session_state
+    or "core_beliefs" not in st.session_state
+    or "base_context" not in st.session_state
+):
+    (
+        st.session_state.task_description,
+        st.session_state.core_beliefs,
+        st.session_state.base_context,
+    ) = load_initial_data()
 
 
 st.title("PACA")
@@ -50,9 +57,8 @@ st.title("PACA")
 
 def generate_answer():
     now = int(datetime.utcnow().timestamp() * 1000)
-    task_description, core_beliefs, base_context = load_initial_data()
     if "prompt_history" not in st.session_state:
-        st.session_state.prompt_history = base_context
+        st.session_state.prompt_history = st.session_state.base_context
     user_message = st.session_state.input_text
     if user_message.startswith("No way! You should say"):
         fixed_bot_start_idx = len("No way! You should say")
@@ -80,7 +86,7 @@ def generate_answer():
         context += f"\nHuman: {user_message}\nAI:"
         response = openai.Completion.create(
             model="text-davinci-002",
-            prompt=f"{task_description} {core_beliefs}\n\n{context}",
+            prompt=f"{st.session_state.task_description} {st.session_state.core_beliefs}\n\n{context}",
             temperature=0.9,
             max_tokens=150,
             top_p=1,
@@ -102,7 +108,7 @@ def generate_answer():
     st.session_state.history.append({"message": message_bot, "is_user": False, "key": bot_id})
 
 
-st.text_input("Talk to the bot", key="input_text", on_change=generate_answer)
-
 for chat in st.session_state.history:
     st_message(**chat)  # unpacking
+
+st.text_input("Talk to the bot", key="input_text", on_change=generate_answer)
